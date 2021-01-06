@@ -2,12 +2,13 @@ package main
 
 import (
     "fmt"
-    "net/http"
-    "io/ioutil"
     "html/template"
+    "io/ioutil"
+    "net/http"
 )
 
-var homepage = `<html>
+var homepage = `<!DOCTYPE html>
+<html>
   <body>
     <h1>My Bullshit</h1>
 
@@ -15,17 +16,18 @@ var homepage = `<html>
       {{range .}}
         <li><a href="/photos/{{.Name}}">{{.Name}}</a></li>
       {{end}}
+    </ul>
   </body>
 </html>`
 
 func main() {
     http.Handle("/photos/",
         http.StripPrefix("/photos/", http.FileServer(http.Dir("./photos"))))
-    http.HandleFunc("/", HelloServer)
+    http.HandleFunc("/", ListPhotos)
     http.ListenAndServe(":8080", nil)
 }
 
-func HelloServer(w http.ResponseWriter, r *http.Request) {
+func ListPhotos(w http.ResponseWriter, r *http.Request) {
     files, err := ioutil.ReadDir("./photos")
 
     if err != nil {
