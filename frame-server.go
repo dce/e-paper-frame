@@ -13,7 +13,7 @@ import (
 var homepage = `<!DOCTYPE html>
 <html>
   <body>
-    <h1>My Bullshit</h1>
+    <h1>My Photos</h1>
 
     <ul>
       {{range .}}
@@ -70,7 +70,7 @@ func ListPhotos(w http.ResponseWriter, r *http.Request) {
     }
 
     tmpl := template.New("Page")
-    if tmpl, err := tmpl.Parse(homepage); err != nil {
+    if _, err := tmpl.Parse(homepage); err != nil {
         fmt.Fprintf(w, "Error: %s", err)
         return
     }
