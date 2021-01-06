@@ -31,8 +31,12 @@ var homepage = `<!DOCTYPE html>
 func main() {
     http.Handle("/photos/",
         http.StripPrefix("/photos/", http.FileServer(http.Dir("./photos"))))
+    http.Handle("/thumbs/",
+        http.StripPrefix("/thumbs/", http.FileServer(http.Dir("./thumbs"))))
+
     http.HandleFunc("/thumb", Thumbnail)
     http.HandleFunc("/", ListPhotos)
+
     http.ListenAndServe(":8080", nil)
 }
 
@@ -45,34 +49,60 @@ func Thumbnail(w http.ResponseWriter, r *http.Request) {
 
     photo := photos[0]
 
-    file, err := os.Open(fmt.Sprintf("./photos/%s", photo))
+    _, err := os.Stat(fmt.Sprintf("thumbs/%s", photo))
     if err != nil {
-        fmt.Fprintf(w, "Error: file %s not found", photo)
-        return
+        err = GenerateThumbnail(photo)
+
+        if err != nil {
+          fmt.Fprintf(w, "Error: %s", err)
+          return
+        }
     }
 
-    img, err := jpeg.Decode(file)
-    if err != nil {
-        fmt.Fprintf(w, "Error: file %s could not be decoded", photo)
-        return
-    }
-
-    thumb := resize.Resize(300, 0, img, resize.NearestNeighbor)
-    jpeg.Encode(w, thumb, nil)
+    http.Redirect(w, r, fmt.Sprintf("/thumbs/%s", photo), 301)
 }
 
 func ListPhotos(w http.ResponseWriter, r *http.Request) {
     files, err := ioutil.ReadDir("./photos")
-
     if err != nil {
         fmt.Fprintf(w, "Error: %s", err)
-    } else {
-        tmpl := template.New("Page")
-
-        if tmpl, err := tmpl.Parse(homepage); err != nil {
-            fmt.Fprintf(w, "Error: %s", err)
-        } else {
-            tmpl.Execute(w, files)
-        }
+        return
     }
+
+    tmpl := template.New("Page")
+    if tmpl, err := tmpl.Parse(homepage); err != nil {
+        fmt.Fprintf(w, "Error: %s", err)
+        return
+    }
+
+    tmpl.Execute(w, files)
+}
+
+func GenerateThumbnail(filename string) (error) {
+    file, err := os.Open(fmt.Sprintf("photos/%s", filename))
+    if err != nil {
+        return err
+    }
+    defer file.Close()
+
+    img, err := jpeg.Decode(file)
+    if err != nil {
+        return err
+    }
+
+    thumb := resize.Resize(300, 0, img, resize.NearestNeighbor)
+
+    err = os.MkdirAll("thumbs", 0755)
+    if err != nil {
+        return err
+    }
+
+    out, err := os.Create(fmt.Sprintf("thumbs/%s", filename))
+    if err != nil {
+        return err
+    }
+    defer out.Close()
+
+    jpeg.Encode(out, thumb, nil)
+    return nil
 }
