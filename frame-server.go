@@ -4,7 +4,19 @@ import (
     "fmt"
     "net/http"
     "io/ioutil"
+    "html/template"
 )
+
+var homepage = `<html>
+  <body>
+    <h1>My Bullshit</h1>
+
+    <ul>
+      {{range .}}
+        <li><a href="/photos/{{.Name}}">{{.Name}}</a></li>
+      {{end}}
+  </body>
+</html>`
 
 func main() {
     http.Handle("/photos/",
@@ -19,12 +31,12 @@ func HelloServer(w http.ResponseWriter, r *http.Request) {
     if err != nil {
         fmt.Fprintf(w, "Error: %s", err)
     } else {
-        w.Header().Set("Content-Type", "text/html; charset=UTF-8")
-        fmt.Fprintf(w, "<ul>")
-        for _, file := range files {
-            fmt.Fprintf(w, "<li><a href=\"/photos/%s\">%s</a></li>",
-                file.Name(), file.Name())
+        tmpl := template.New("Page")
+
+        if tmpl, err := tmpl.Parse(homepage); err != nil {
+            fmt.Fprintf(w, "Error: %s", err)
+        } else {
+            tmpl.Execute(w, files)
         }
-        fmt.Fprintf(w, "</ul>")
     }
 }
