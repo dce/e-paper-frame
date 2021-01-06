@@ -6,6 +6,8 @@ import (
 )
 
 func main() {
+    http.Handle("/photos/",
+        http.StripPrefix("/photos/", http.FileServer(http.Dir("./photos"))))
     http.HandleFunc("/", HelloServer)
     http.ListenAndServe(":8080", nil)
 }
