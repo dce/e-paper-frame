@@ -20,7 +20,6 @@ var homepage = `<!DOCTYPE html>
 					<a href="/photos/{{.Name}}">
 						<img src="/thumb?p={{.Name}}">
 					</a><br>
-					<a href="/dither?p={{.Name}}">Dither</a>
 					<a href="/display?p={{.Name}}">Display</a>
 				</p>
 		{{end}}
@@ -28,15 +27,14 @@ var homepage = `<!DOCTYPE html>
 </html>`
 
 func main() {
+	log.Println("System is starting...")
+
 	http.Handle("/photos/",
 		http.StripPrefix("/photos/", http.FileServer(http.Dir("./photos"))))
 	http.Handle("/thumbs/",
 		http.StripPrefix("/thumbs/", http.FileServer(http.Dir("./thumbs"))))
-	http.Handle("/dithered/",
-		http.StripPrefix("/dithered/", http.FileServer(http.Dir("./dithered"))))
 
 	http.HandleFunc("/thumb", Thumbnail)
-	http.HandleFunc("/dither", Dither)
 	http.HandleFunc("/display", Display)
 	http.HandleFunc("/", ListPhotos)
 
@@ -44,6 +42,8 @@ func main() {
 }
 
 func Thumbnail(w http.ResponseWriter, r *http.Request) {
+	log.Println("Retrieving thumbnail...")
+
 	photos, ok := r.URL.Query()["p"]
 	if !ok {
 		fmt.Fprintf(w, "Error: required parameter ('p') not supplied")
@@ -90,6 +90,8 @@ func Dither(w http.ResponseWriter, r *http.Request) {
 }
 
 func Display(w http.ResponseWriter, r *http.Request) {
+	log.Println("Displaying photo ...")
+
 	photos, ok := r.URL.Query()["p"]
 	if !ok {
 		fmt.Fprintf(w, "Error: required parameter ('p') not supplied")
@@ -97,11 +99,19 @@ func Display(w http.ResponseWriter, r *http.Request) {
 	}
 
 	photo := photos[0]
+	dithered := path("dithered", photo)
 
-	log.Println("Starting...")
-	epd, _ := epd7in5.New("P1_22", "P1_24", "P1_11", "P1_18")
+	_, err := os.Stat(dithered)
+	if err != nil {
+		err = GenerateDitheredImage(photo)
 
-	file, err := os.Open(path("dithered", photo))
+		if err != nil {
+			fmt.Fprintf(w, "Error: %s", err)
+			return
+		}
+	}
+
+	file, err := os.Open(dithered)
 	if err != nil {
 		fmt.Fprintf(w, "Error: %s", err)
 		return
@@ -113,6 +123,8 @@ func Display(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "Error: %s", err)
 		return
 	}
+
+	epd, _ := epd7in5.New("P1_22", "P1_24", "P1_11", "P1_18")
 
 	log.Println("Initializing the display...")
 	epd.Init()
