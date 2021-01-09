@@ -1,0 +1,9 @@
+[Service]
+ExecStart=/home/pi/frame/frame-server-arm serve
+User=root
+Group=root
+WorkingDirectory=/home/pi/frame
+Restart=always
+RestartSec=3
+[Install]
+WantedBy=multi-user.target
