@@ -256,9 +256,9 @@ func generateDitheredImage(filename string) error {
 		"center",
 		"-extent",
 		"880x528",
-		"-monochrome",
 		"-ordered-dither",
 		"o8x8",
+		"-monochrome",
 		"-negate",
 	)
 
