@@ -163,8 +163,9 @@ func GenerateThumbnail(filename string) error {
 	err = convert(
 		path("photos", filename),
 		path("thumbs", filename),
+		"-auto-orient",
 		"-resize",
-		"400x300",
+		"400x300^",
 		"-gravity",
 		"center",
 		"-extent",
@@ -186,6 +187,7 @@ func GenerateDitheredImage(filename string) error {
 	err = convert(
 		path("photos", filename),
 		path("dithered", filename),
+		"-auto-orient",
 		"-resize",
 		"880x528^",
 		"-gravity",
