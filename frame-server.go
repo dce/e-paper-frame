@@ -3,16 +3,16 @@ package main
 import (
     "fmt"
     "html/template"
-    "image"
     "image/jpeg"
     "io/ioutil"
     "github.com/nfnt/resize"
     "github.com/dce/rpi/epd7in5"
-    "github.com/disintegration/gift"
-    "github.com/lestrrat-go/dither"
     "log"
     "net/http"
     "os"
+    "os/exec"
+    "path/filepath"
+    "strings"
 )
 
 var homepage = `<!DOCTYPE html>
@@ -23,7 +23,7 @@ var homepage = `<!DOCTYPE html>
         <a href="/photos/{{.Name}}">
           <img src="/thumb?p={{.Name}}">
         </a><br>
-        <a href="/thumb2?p={{.Name}}">Thumb</a>
+        <a href="/dither?p={{.Name}}">Dither</a>
         <a href="/display?p={{.Name}}">Display</a>
       </p>
     {{end}}
@@ -35,9 +35,11 @@ func main() {
         http.StripPrefix("/photos/", http.FileServer(http.Dir("./photos"))))
     http.Handle("/thumbs/",
         http.StripPrefix("/thumbs/", http.FileServer(http.Dir("./thumbs"))))
+    http.Handle("/dithered/",
+        http.StripPrefix("/dithered/", http.FileServer(http.Dir("./dithered"))))
 
     http.HandleFunc("/thumb", Thumbnail)
-    http.HandleFunc("/thumb2", Thumbnail2)
+    http.HandleFunc("/dither", Dither)
     http.HandleFunc("/display", Display)
     http.HandleFunc("/", ListPhotos)
 
@@ -66,7 +68,7 @@ func Thumbnail(w http.ResponseWriter, r *http.Request) {
     http.Redirect(w, r, fmt.Sprintf("/thumbs/%s", photo), 301)
 }
 
-func Thumbnail2(w http.ResponseWriter, r *http.Request) {
+func Dither(w http.ResponseWriter, r *http.Request) {
     photos, ok := r.URL.Query()["p"]
     if !ok {
         fmt.Fprintf(w, "Error: required parameter ('p') not supplied")
@@ -74,31 +76,19 @@ func Thumbnail2(w http.ResponseWriter, r *http.Request) {
     }
 
     photo := photos[0]
+    bmpFile := strings.Replace(photo, filepath.Ext(photo), ".bmp", 1)
 
-    file, err := os.Open(fmt.Sprintf("photos/%s", photo))
+    _, err := os.Stat(fmt.Sprintf("dithered/%s", bmpFile))
     if err != nil {
-        fmt.Fprintf(w, "Error: %s", err)
-        return
-    }
-    defer file.Close()
+        err = GenerateDitheredImage(photo)
 
-    img, err := jpeg.Decode(file)
-    if err != nil {
-        fmt.Fprintf(w, "Error: %s", err)
-        return
+        if err != nil {
+          fmt.Fprintf(w, "Error: %s", err)
+          return
+        }
     }
 
-    g := gift.New(
-      gift.ResizeToFill(880, 852, gift.LanczosResampling, gift.CenterAnchor),
-    )
-
-    thumb := image.NewRGBA(g.Bounds(img.Bounds()))
-
-    g.Draw(thumb, img)
-
-    dithered := dither.Monochrome(dither.Burkes, thumb, 1.18)
-
-    jpeg.Encode(w, dithered, nil)
+    http.Redirect(w, r, fmt.Sprintf("/dithered/%s", bmpFile), 301)
 }
 
 func Display(w http.ResponseWriter, r *http.Request) {
@@ -180,5 +170,40 @@ func GenerateThumbnail(filename string) (error) {
     defer out.Close()
 
     jpeg.Encode(out, thumb, nil)
+    return nil
+}
+
+func GenerateDitheredImage(filename string) (error) {
+    err := os.MkdirAll("dithered", 0755)
+    if err != nil {
+        return err
+    }
+
+    bmpFile := strings.Replace(filename, filepath.Ext(filename), ".bmp", 1)
+
+    cmd := exec.Command(
+      "convert",
+      fmt.Sprintf("photos/%s", filename),
+      "-resize",
+      "880x528^",
+      "-gravity",
+      "center",
+      "-extent",
+      "880x528",
+      "-monochrome",
+      "-dither",
+      "Riemersma",
+      fmt.Sprintf("dithered/%s", bmpFile),
+    )
+
+    cmd.Stdout = os.Stdout
+    cmd.Stderr = os.Stdout
+
+    err = cmd.Run()
+
+    if err != nil {
+      return err
+    }
+
     return nil
 }
