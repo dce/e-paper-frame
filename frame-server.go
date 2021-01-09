@@ -27,7 +27,7 @@ var homepage = `<!DOCTYPE html>
 </html>`
 
 func main() {
-	log.Println("System is starting...")
+	log.Println("Server is starting")
 
 	http.Handle("/photos/",
 		http.StripPrefix("/photos/", http.FileServer(http.Dir("./photos"))))
@@ -88,7 +88,7 @@ func Dither(w http.ResponseWriter, r *http.Request) {
 }
 
 func Display(w http.ResponseWriter, r *http.Request) {
-	log.Println("Displaying photo ...")
+	log.Println("Displaying photo")
 
 	photos, ok := r.URL.Query()["p"]
 	if !ok {
@@ -124,13 +124,13 @@ func Display(w http.ResponseWriter, r *http.Request) {
 
 	epd, _ := epd7in5.New("P1_22", "P1_24", "P1_11", "P1_18")
 
-	log.Println("Initializing the display...")
+	log.Println("-> Initializing the display")
 	epd.Init()
 
-	log.Println("Clearing...")
+	log.Println("-> Clearing")
 	epd.Clear()
 
-	log.Println("Displaying image...")
+	log.Println("-> Displaying", photo)
 	epd.Display(epd.Convert(img))
 
 	fmt.Fprintf(w, "Displaying %s", photo)
@@ -153,7 +153,7 @@ func ListPhotos(w http.ResponseWriter, r *http.Request) {
 }
 
 func GenerateThumbnail(filename string) error {
-	log.Println("Generating thumbnail for %s", filename)
+	log.Println("-> Generating thumbnail for", filename)
 
 	err := os.MkdirAll("thumbs", 0755)
 	if err != nil {
@@ -179,7 +179,7 @@ func GenerateThumbnail(filename string) error {
 }
 
 func GenerateDitheredImage(filename string) error {
-	log.Println("Generating dithered image for %s", filename)
+	log.Println("-> Generating dithered image for", filename)
 
 	err := os.MkdirAll("dithered", 0755)
 	if err != nil {
