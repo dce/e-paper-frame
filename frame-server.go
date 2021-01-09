@@ -177,6 +177,10 @@ func displayPhoto(filename string) error {
 		return err
 	}
 
+	if os.Getenv("GOARCH") != "arm" {
+		return nil
+	}
+
 	epd, _ := epd7in5.New("P1_22", "P1_24", "P1_11", "P1_18")
 
 	log.Println("-> Initializing the display")
