@@ -14,16 +14,25 @@ import (
 	"time"
 )
 
+type homepageData struct {
+	Flash  string
+	Photos []os.FileInfo
+}
+
 var homepage = `<!DOCTYPE html>
-	<html>
-		<body>
-			{{range .}}
-				<p>
-					<a href="/photos/{{.Name}}">
-						<img src="/thumb?p={{.Name}}">
-					</a><br>
-					<a href="/display?p={{.Name}}">Display</a>
-				</p>
+<html>
+	<body>
+		{{if .Flash}}
+			<p>{{.Flash}}</p>
+		{{end}}
+
+		{{range .Photos}}
+			<p>
+				<a href="/photos/{{.Name}}">
+					<img src="/thumb?p={{.Name}}">
+				</a><br>
+				<a href="/display?p={{.Name}}">Display</a>
+			</p>
 		{{end}}
 	</body>
 </html>`
@@ -80,13 +89,29 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var msg string
+	if flash, err := r.Cookie("flash"); err == nil {
+		msg = flash.Value
+	} else {
+		msg = ""
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:   "flash",
+		Value:  "",
+		MaxAge: -1,
+	})
+
 	tmpl := template.New("Page")
 	if _, err := tmpl.Parse(homepage); err != nil {
 		fmt.Fprintf(w, "Error: %s", err)
 		return
 	}
 
-	tmpl.Execute(w, files)
+	tmpl.Execute(w, &homepageData{
+		Flash:  msg,
+		Photos: files,
+	})
 }
 
 func thumbHandler(w http.ResponseWriter, r *http.Request) {
@@ -125,7 +150,11 @@ func displayHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Fprintf(w, "Displaying %s", photo)
+	http.SetCookie(w, &http.Cookie{
+		Name:  "flash",
+		Value: fmt.Sprintf("Photo %s displayed!", photo),
+	})
+	http.Redirect(w, r, "/", 302)
 }
 
 func displayPhoto(filename string) error {
