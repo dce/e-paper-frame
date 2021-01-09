@@ -7,9 +7,11 @@ import (
 	"image/jpeg"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"net/http"
 	"os"
 	"os/exec"
+	"time"
 )
 
 var homepage = `<!DOCTYPE html>
@@ -27,6 +29,36 @@ var homepage = `<!DOCTYPE html>
 </html>`
 
 func main() {
+	if len(os.Args) == 1 {
+		log.Println("Please supply a command")
+		return
+	}
+
+	cmd := os.Args[1]
+
+	switch cmd {
+	case "serve":
+		startServer()
+	case "random":
+		displayRandomPhoto()
+	default:
+		log.Println("Unrecognized command:", cmd)
+	}
+}
+
+func displayRandomPhoto() {
+	photos, err := ioutil.ReadDir("./photos")
+	if err != nil {
+		log.Println("Error:", err)
+		return
+	}
+
+	rand.Seed(time.Now().UnixNano())
+	photo := photos[rand.Intn(len(photos))]
+	displayPhoto(photo.Name())
+}
+
+func startServer() {
 	log.Println("Server is starting")
 
 	http.Handle("/photos/",
@@ -34,109 +66,14 @@ func main() {
 	http.Handle("/thumbs/",
 		http.StripPrefix("/thumbs/", http.FileServer(http.Dir("./thumbs"))))
 
-	http.HandleFunc("/thumb", Thumbnail)
-	http.HandleFunc("/display", Display)
-	http.HandleFunc("/", ListPhotos)
+	http.HandleFunc("/thumb", thumbHandler)
+	http.HandleFunc("/display", displayHandler)
+	http.HandleFunc("/", indexHandler)
 
 	http.ListenAndServe(":80", nil)
 }
 
-func Thumbnail(w http.ResponseWriter, r *http.Request) {
-	photos, ok := r.URL.Query()["p"]
-	if !ok {
-		fmt.Fprintf(w, "Error: required parameter ('p') not supplied")
-		return
-	}
-
-	photo := photos[0]
-	thumbPath := path("thumbs", photo)
-
-	_, err := os.Stat(thumbPath)
-	if err != nil {
-		err = GenerateThumbnail(photo)
-
-		if err != nil {
-			fmt.Fprintf(w, "Error: %s", err)
-			return
-		}
-	}
-
-	http.Redirect(w, r, fmt.Sprintf("/%s", thumbPath), 301)
-}
-
-func Dither(w http.ResponseWriter, r *http.Request) {
-	photos, ok := r.URL.Query()["p"]
-	if !ok {
-		fmt.Fprintf(w, "Error: required parameter ('p') not supplied")
-		return
-	}
-
-	photo := photos[0]
-	dithered := path("dithered", photo)
-
-	_, err := os.Stat(dithered)
-	if err != nil {
-		err = GenerateDitheredImage(photo)
-
-		if err != nil {
-			fmt.Fprintf(w, "Error: %s", err)
-			return
-		}
-	}
-
-	http.Redirect(w, r, fmt.Sprintf("/%s", dithered), 301)
-}
-
-func Display(w http.ResponseWriter, r *http.Request) {
-	log.Println("Displaying photo")
-
-	photos, ok := r.URL.Query()["p"]
-	if !ok {
-		fmt.Fprintf(w, "Error: required parameter ('p') not supplied")
-		return
-	}
-
-	photo := photos[0]
-	dithered := path("dithered", photo)
-
-	_, err := os.Stat(dithered)
-	if err != nil {
-		err = GenerateDitheredImage(photo)
-
-		if err != nil {
-			fmt.Fprintf(w, "Error: %s", err)
-			return
-		}
-	}
-
-	file, err := os.Open(dithered)
-	if err != nil {
-		fmt.Fprintf(w, "Error: %s", err)
-		return
-	}
-	defer file.Close()
-
-	img, err := jpeg.Decode(file)
-	if err != nil {
-		fmt.Fprintf(w, "Error: %s", err)
-		return
-	}
-
-	epd, _ := epd7in5.New("P1_22", "P1_24", "P1_11", "P1_18")
-
-	log.Println("-> Initializing the display")
-	epd.Init()
-
-	log.Println("-> Clearing")
-	epd.Clear()
-
-	log.Println("-> Displaying", photo)
-	epd.Display(epd.Convert(img))
-
-	fmt.Fprintf(w, "Displaying %s", photo)
-}
-
-func ListPhotos(w http.ResponseWriter, r *http.Request) {
+func indexHandler(w http.ResponseWriter, r *http.Request) {
 	files, err := ioutil.ReadDir("./photos")
 	if err != nil {
 		fmt.Fprintf(w, "Error: %s", err)
@@ -152,7 +89,80 @@ func ListPhotos(w http.ResponseWriter, r *http.Request) {
 	tmpl.Execute(w, files)
 }
 
-func GenerateThumbnail(filename string) error {
+func thumbHandler(w http.ResponseWriter, r *http.Request) {
+	photos, ok := r.URL.Query()["p"]
+	if !ok {
+		fmt.Fprintf(w, "Error: required parameter ('p') not supplied")
+		return
+	}
+
+	photo := photos[0]
+	thumbPath := path("thumbs", photo)
+
+	if _, err := os.Stat(thumbPath); err != nil {
+		if err = generateThumbnail(photo); err != nil {
+			fmt.Fprintf(w, "Error: %s", err)
+			return
+		}
+	}
+
+	http.Redirect(w, r, fmt.Sprintf("/%s", thumbPath), 301)
+}
+
+func displayHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("Displaying photo")
+
+	photos, ok := r.URL.Query()["p"]
+	if !ok {
+		fmt.Fprintf(w, "Error: required parameter ('p') not supplied")
+		return
+	}
+
+	photo := photos[0]
+
+	if err := displayPhoto(photo); err != nil {
+		fmt.Fprintf(w, "Error: %s", err)
+		return
+	}
+
+	fmt.Fprintf(w, "Displaying %s", photo)
+}
+
+func displayPhoto(filename string) error {
+	dithered := path("dithered", filename)
+
+	if _, err := os.Stat(dithered); err != nil {
+		if err = generateDitheredImage(filename); err != nil {
+			return err
+		}
+	}
+
+	file, err := os.Open(dithered)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	img, err := jpeg.Decode(file)
+	if err != nil {
+		return err
+	}
+
+	epd, _ := epd7in5.New("P1_22", "P1_24", "P1_11", "P1_18")
+
+	log.Println("-> Initializing the display")
+	epd.Init()
+
+	log.Println("-> Clearing")
+	epd.Clear()
+
+	log.Println("-> Displaying", filename)
+	epd.Display(epd.Convert(img))
+
+	return nil
+}
+
+func generateThumbnail(filename string) error {
 	log.Println("-> Generating thumbnail for", filename)
 
 	err := os.MkdirAll("thumbs", 0755)
@@ -178,7 +188,7 @@ func GenerateThumbnail(filename string) error {
 	return nil
 }
 
-func GenerateDitheredImage(filename string) error {
+func generateDitheredImage(filename string) error {
 	log.Println("-> Generating dithered image for", filename)
 
 	err := os.MkdirAll("dithered", 0755)
