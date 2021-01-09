@@ -51,8 +51,9 @@ func Thumbnail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	photo := photos[0]
+	thumbPath := path("thumbs", photo)
 
-	_, err := os.Stat(fmt.Sprintf("thumbs/%s", photo))
+	_, err := os.Stat(thumbPath)
 	if err != nil {
 		err = GenerateThumbnail(photo)
 
@@ -62,7 +63,7 @@ func Thumbnail(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	http.Redirect(w, r, fmt.Sprintf("/thumbs/%s", photo), 301)
+	http.Redirect(w, r, fmt.Sprintf("/%s", thumbPath), 301)
 }
 
 func Dither(w http.ResponseWriter, r *http.Request) {
@@ -73,9 +74,9 @@ func Dither(w http.ResponseWriter, r *http.Request) {
 	}
 
 	photo := photos[0]
-	bmpFile := ditherPath(photo)
+	dithered := path("dithered", photo)
 
-	_, err := os.Stat(bmpFile)
+	_, err := os.Stat(dithered)
 	if err != nil {
 		err = GenerateDitheredImage(photo)
 
@@ -85,7 +86,7 @@ func Dither(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	http.Redirect(w, r, fmt.Sprintf("/%s", bmpFile), 301)
+	http.Redirect(w, r, fmt.Sprintf("/%s", dithered), 301)
 }
 
 func Display(w http.ResponseWriter, r *http.Request) {
@@ -100,7 +101,7 @@ func Display(w http.ResponseWriter, r *http.Request) {
 	log.Println("Starting...")
 	epd, _ := epd7in5.New("P1_22", "P1_24", "P1_11", "P1_18")
 
-	file, err := os.Open(ditherPath(photo))
+	file, err := os.Open(path("dithered", photo))
 	if err != nil {
 		fmt.Fprintf(w, "Error: %s", err)
 		return
@@ -148,8 +149,8 @@ func GenerateThumbnail(filename string) error {
 	}
 
 	err = convert(
-		fmt.Sprintf("photos/%s", filename),
-		fmt.Sprintf("thumbs/%s", filename),
+		path("photos", filename),
+		path("thumbs", filename),
 		"-resize",
 		"400x300",
 		"-gravity",
@@ -171,8 +172,8 @@ func GenerateDitheredImage(filename string) error {
 	}
 
 	err = convert(
-		fmt.Sprintf("photos/%s", filename),
-		ditherPath(filename),
+		path("photos", filename),
+		path("dithered", filename),
 		"-resize",
 		"880x528^",
 		"-gravity",
@@ -209,7 +210,6 @@ func convert(infile string, outfile string, options ...string) error {
 	return nil
 }
 
-func ditherPath(filename string) string {
-	// filename = strings.Replace(filename, filepath.Ext(filename), ".bmp", 1)
-	return fmt.Sprintf("dithered/%s", filename)
+func path(dir string, file string) string {
+	return fmt.Sprintf("%s/%s", dir, file)
 }
