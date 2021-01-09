@@ -16,24 +16,40 @@ import (
 
 type homepageData struct {
 	Flash  string
-	Photos []os.FileInfo
+	PhotoRows [][]os.FileInfo
 }
 
 var homepage = `<!DOCTYPE html>
 <html>
-	<body>
-		{{if .Flash}}
-			<p>{{.Flash}}</p>
-		{{end}}
+	<head>
+		<link
+			href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta1/dist/css/bootstrap.min.css"
+			rel="stylesheet"
+			integrity="sha384-giJF6kkoqNQ00vy+HMDP7azOuL0xtbfIcaT9wjKHr8RbDVddVHyTfAAsrekwKmP1"
+			crossorigin="anonymous">
+	</head>
 
-		{{range .Photos}}
-			<p>
-				<a href="/photos/{{.Name}}">
-					<img src="/thumb?p={{.Name}}">
-				</a><br>
-				<a href="/display?p={{.Name}}">Display</a>
-			</p>
-		{{end}}
+	<body>
+		<div class="container mt-5">
+			{{if .Flash}}
+				<div class="alert alert-success" role="alert">
+					{{.Flash}}
+				</div>
+			{{end}}
+
+			{{range .PhotoRows}}
+				<div class="row">
+					{{range .}}
+						<div class="col-md-4 text-center mb-5">
+							<a href="/photos/{{.Name}}">
+								<img src="/thumb?p={{.Name}}" class="img-fluid">
+							</a><br>
+							<a href="/display?p={{.Name}}" class="btn btn-primary mt-2">Display</a>
+						</div>
+					{{end}}
+				</div>
+			{{end}}
+		</div>
 	</body>
 </html>`
 
@@ -110,7 +126,7 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 
 	tmpl.Execute(w, &homepageData{
 		Flash:  msg,
-		Photos: files,
+		PhotoRows: photoRows(files),
 	})
 }
 
@@ -271,4 +287,17 @@ func convert(infile string, outfile string, options ...string) error {
 
 func path(dir string, file string) string {
 	return fmt.Sprintf("%s/%s", dir, file)
+}
+
+func photoRows(photos []os.FileInfo) ([][]os.FileInfo) {
+	rows := make([][]os.FileInfo, 0)
+
+	for i := 0; i < len(photos); i += 3 {
+		if i + 2 < len(photos) {
+			rows = append(rows, photos[i:i+3])
+		} else {
+			rows = append(rows, photos[i:])
+		}
+	}
+	return rows
 }
