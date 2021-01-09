@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"github.com/dce/rpi/epd7in5"
-	"github.com/nfnt/resize"
 	"html/template"
 	"image/jpeg"
 	"io/ioutil"
@@ -11,8 +10,6 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	// "path/filepath"
-	// "strings"
 )
 
 var homepage = `<!DOCTYPE html>
@@ -145,31 +142,25 @@ func ListPhotos(w http.ResponseWriter, r *http.Request) {
 }
 
 func GenerateThumbnail(filename string) error {
-	file, err := os.Open(fmt.Sprintf("photos/%s", filename))
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	img, err := jpeg.Decode(file)
+	err := os.MkdirAll("thumbs", 0755)
 	if err != nil {
 		return err
 	}
 
-	thumb := resize.Resize(300, 0, img, resize.NearestNeighbor)
+	err = convert(
+		fmt.Sprintf("photos/%s", filename),
+		fmt.Sprintf("thumbs/%s", filename),
+		"-resize",
+		"400x300",
+		"-gravity",
+		"center",
+		"-extent",
+		"400x300",
+	)
 
-	err = os.MkdirAll("thumbs", 0755)
 	if err != nil {
 		return err
 	}
-
-	out, err := os.Create(fmt.Sprintf("thumbs/%s", filename))
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-
-	jpeg.Encode(out, thumb, nil)
 	return nil
 }
 
@@ -179,9 +170,9 @@ func GenerateDitheredImage(filename string) error {
 		return err
 	}
 
-	cmd := exec.Command(
-		"convert",
+	err = convert(
 		fmt.Sprintf("photos/%s", filename),
+		ditherPath(filename),
 		"-resize",
 		"880x528^",
 		"-gravity",
@@ -192,15 +183,26 @@ func GenerateDitheredImage(filename string) error {
 		"-dither",
 		"Riemersma",
 		"-negate",
-		ditherPath(filename),
 	)
 
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func convert(infile string, outfile string, options ...string) error {
+	var args []string
+	args = append(args, infile)
+	args = append(args, options...)
+	args = append(args, outfile)
+
+	cmd := exec.Command("convert", args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stdout
 
-	err = cmd.Run()
-
-	if err != nil {
+	if err := cmd.Run(); err != nil {
 		return err
 	}
 
