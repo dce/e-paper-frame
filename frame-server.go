@@ -42,8 +42,6 @@ func main() {
 }
 
 func Thumbnail(w http.ResponseWriter, r *http.Request) {
-	log.Println("Retrieving thumbnail...")
-
 	photos, ok := r.URL.Query()["p"]
 	if !ok {
 		fmt.Fprintf(w, "Error: required parameter ('p') not supplied")
@@ -155,6 +153,8 @@ func ListPhotos(w http.ResponseWriter, r *http.Request) {
 }
 
 func GenerateThumbnail(filename string) error {
+	log.Println("Generating thumbnail for %s", filename)
+
 	err := os.MkdirAll("thumbs", 0755)
 	if err != nil {
 		return err
@@ -179,6 +179,8 @@ func GenerateThumbnail(filename string) error {
 }
 
 func GenerateDitheredImage(filename string) error {
+	log.Println("Generating dithered image for %s", filename)
+
 	err := os.MkdirAll("dithered", 0755)
 	if err != nil {
 		return err
