@@ -225,11 +225,11 @@ func generateThumbnail(filename string) error {
 		path("thumbs", filename),
 		"-auto-orient",
 		"-resize",
-		"400x300^",
+		"640x480^",
 		"-gravity",
 		"center",
 		"-extent",
-		"400x300",
+		"640x480",
 	)
 
 	if err != nil {
