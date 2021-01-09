@@ -38,7 +38,7 @@ func main() {
 	http.HandleFunc("/display", Display)
 	http.HandleFunc("/", ListPhotos)
 
-	http.ListenAndServe(":8080", nil)
+	http.ListenAndServe(":80", nil)
 }
 
 func Thumbnail(w http.ResponseWriter, r *http.Request) {

@@ -6,6 +6,6 @@ docker run \
   -v "$(pwd)":/code:delegated \
   -v frame-server-gopath:/go/src \
   -w /code \
-  -p 8080:8080 \
+  -p 8080:80 \
   golang:1.15.6 \
   /bin/bash
