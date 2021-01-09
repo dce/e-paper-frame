@@ -9,6 +9,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"runtime"
 	"os"
 	"os/exec"
 	"time"
@@ -193,7 +194,7 @@ func displayPhoto(filename string) error {
 		return err
 	}
 
-	if os.Getenv("GOARCH") != "arm" {
+	if runtime.GOARCH != "arm" {
 		return nil
 	}
 
