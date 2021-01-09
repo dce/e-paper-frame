@@ -6,6 +6,7 @@ import (
     "image/jpeg"
     "io/ioutil"
     "github.com/nfnt/resize"
+    "github.com/dce/rpi/epd7in5"
     "net/http"
     "os"
 )
@@ -13,18 +14,14 @@ import (
 var homepage = `<!DOCTYPE html>
 <html>
   <body>
-    <h1>My Photos</h1>
-
-    <ul>
-      {{range .}}
-        <li>
-          <a href="/photos/{{.Name}}">
-            <img src="/thumb?p={{.Name}}">
-            {{.Name}}
-          </a>
-        </li>
-      {{end}}
-    </ul>
+    {{range .}}
+      <p>
+        <a href="/photos/{{.Name}}">
+          <img src="/thumb?p={{.Name}}">
+        </a><br>
+        <a href="/display?p={{.Name}}">Display</a>
+      </p>
+    {{end}}
   </body>
 </html>`
 
@@ -35,6 +32,7 @@ func main() {
         http.StripPrefix("/thumbs/", http.FileServer(http.Dir("./thumbs"))))
 
     http.HandleFunc("/thumb", Thumbnail)
+    http.HandleFunc("/display", Display)
     http.HandleFunc("/", ListPhotos)
 
     http.ListenAndServe(":8080", nil)
@@ -60,6 +58,36 @@ func Thumbnail(w http.ResponseWriter, r *http.Request) {
     }
 
     http.Redirect(w, r, fmt.Sprintf("/thumbs/%s", photo), 301)
+}
+
+func Display(w http.ResponseWriter, r *http.Request) {
+    photos, ok := r.URL.Query()["p"]
+    if !ok {
+        fmt.Fprintf(w, "Error: required parameter ('p') not supplied")
+        return
+    }
+
+    photo := photos[0]
+
+    epd, _ := epd7in5.New("P1_22", "P1_24", "P1_11", "P1_18")
+
+    file, err := os.Open(fmt.Sprintf("photos/%s", photo))
+    if err != nil {
+        fmt.Fprintf(w, "Error: %s", err)
+        return
+    }
+    defer file.Close()
+
+    img, err := jpeg.Decode(file)
+    if err != nil {
+        fmt.Fprintf(w, "Error: %s", err)
+        return
+    }
+
+    epd.Init()
+    epd.Clear()
+    epd.Display(epd.Convert(img))
+    fmt.Fprintf(w, "Displaying %s", photo)
 }
 
 func ListPhotos(w http.ResponseWriter, r *http.Request) {
