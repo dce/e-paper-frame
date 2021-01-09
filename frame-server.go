@@ -11,8 +11,8 @@ import (
     "net/http"
     "os"
     "os/exec"
-    "path/filepath"
-    "strings"
+    // "path/filepath"
+    // "strings"
 )
 
 var homepage = `<!DOCTYPE html>
@@ -76,9 +76,9 @@ func Dither(w http.ResponseWriter, r *http.Request) {
     }
 
     photo := photos[0]
-    bmpFile := strings.Replace(photo, filepath.Ext(photo), ".bmp", 1)
+    bmpFile := ditherPath(photo)
 
-    _, err := os.Stat(fmt.Sprintf("dithered/%s", bmpFile))
+    _, err := os.Stat(bmpFile)
     if err != nil {
         err = GenerateDitheredImage(photo)
 
@@ -88,7 +88,7 @@ func Dither(w http.ResponseWriter, r *http.Request) {
         }
     }
 
-    http.Redirect(w, r, fmt.Sprintf("/dithered/%s", bmpFile), 301)
+    http.Redirect(w, r, fmt.Sprintf("/%s", bmpFile), 301)
 }
 
 func Display(w http.ResponseWriter, r *http.Request) {
@@ -103,7 +103,7 @@ func Display(w http.ResponseWriter, r *http.Request) {
     log.Println("Starting...")
     epd, _ := epd7in5.New("P1_22", "P1_24", "P1_11", "P1_18")
 
-    file, err := os.Open(fmt.Sprintf("photos/%s", photo))
+    file, err := os.Open(ditherPath(photo))
     if err != nil {
         fmt.Fprintf(w, "Error: %s", err)
         return
@@ -179,8 +179,6 @@ func GenerateDitheredImage(filename string) (error) {
         return err
     }
 
-    bmpFile := strings.Replace(filename, filepath.Ext(filename), ".bmp", 1)
-
     cmd := exec.Command(
       "convert",
       fmt.Sprintf("photos/%s", filename),
@@ -193,7 +191,8 @@ func GenerateDitheredImage(filename string) (error) {
       "-monochrome",
       "-dither",
       "Riemersma",
-      fmt.Sprintf("dithered/%s", bmpFile),
+      "-negate",
+      ditherPath(filename),
     )
 
     cmd.Stdout = os.Stdout
@@ -206,4 +205,9 @@ func GenerateDitheredImage(filename string) (error) {
     }
 
     return nil
+}
+
+func ditherPath(filename string) (string) {
+    // filename = strings.Replace(filename, filepath.Ext(filename), ".bmp", 1)
+    return fmt.Sprintf("dithered/%s", filename)
 }
