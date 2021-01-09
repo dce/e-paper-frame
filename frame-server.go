@@ -2,11 +2,11 @@ package main
 
 import (
 	"fmt"
+	"github.com/dce/rpi/epd7in5"
+	"github.com/nfnt/resize"
 	"html/template"
 	"image/jpeg"
 	"io/ioutil"
-	"github.com/nfnt/resize"
-	"github.com/dce/rpi/epd7in5"
 	"log"
 	"net/http"
 	"os"
@@ -32,11 +32,11 @@ var homepage = `<!DOCTYPE html>
 
 func main() {
 	http.Handle("/photos/",
-	http.StripPrefix("/photos/", http.FileServer(http.Dir("./photos"))))
+		http.StripPrefix("/photos/", http.FileServer(http.Dir("./photos"))))
 	http.Handle("/thumbs/",
-	http.StripPrefix("/thumbs/", http.FileServer(http.Dir("./thumbs"))))
+		http.StripPrefix("/thumbs/", http.FileServer(http.Dir("./thumbs"))))
 	http.Handle("/dithered/",
-	http.StripPrefix("/dithered/", http.FileServer(http.Dir("./dithered"))))
+		http.StripPrefix("/dithered/", http.FileServer(http.Dir("./dithered"))))
 
 	http.HandleFunc("/thumb", Thumbnail)
 	http.HandleFunc("/dither", Dither)
@@ -144,7 +144,7 @@ func ListPhotos(w http.ResponseWriter, r *http.Request) {
 	tmpl.Execute(w, files)
 }
 
-func GenerateThumbnail(filename string) (error) {
+func GenerateThumbnail(filename string) error {
 	file, err := os.Open(fmt.Sprintf("photos/%s", filename))
 	if err != nil {
 		return err
@@ -173,7 +173,7 @@ func GenerateThumbnail(filename string) (error) {
 	return nil
 }
 
-func GenerateDitheredImage(filename string) (error) {
+func GenerateDitheredImage(filename string) error {
 	err := os.MkdirAll("dithered", 0755)
 	if err != nil {
 		return err
@@ -207,7 +207,7 @@ func GenerateDitheredImage(filename string) (error) {
 	return nil
 }
 
-func ditherPath(filename string) (string) {
+func ditherPath(filename string) string {
 	// filename = strings.Replace(filename, filepath.Ext(filename), ".bmp", 1)
 	return fmt.Sprintf("dithered/%s", filename)
 }
