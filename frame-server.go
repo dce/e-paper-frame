@@ -31,7 +31,7 @@ var homepage = `<!DOCTYPE html>
 	</head>
 
 	<body>
-		<div class="container mt-5">
+		<div class="container mt-5 mb-5">
 			{{if .Flash}}
 				<div class="alert alert-success" role="alert">
 					{{.Flash}}
@@ -50,6 +50,10 @@ var homepage = `<!DOCTYPE html>
 					{{end}}
 				</div>
 			{{end}}
+
+			<div class="pt-5 border-top text-center">
+				<a href="/shutdown" class="btn btn-secondary">Shutdown</a>
+			</div>
 		</div>
 	</body>
 </html>`
@@ -94,6 +98,7 @@ func startServer() {
 
 	http.HandleFunc("/thumb", thumbHandler)
 	http.HandleFunc("/display", displayHandler)
+	http.HandleFunc("/shutdown", shutdownHandler)
 	http.HandleFunc("/", indexHandler)
 
 	http.ListenAndServe(":80", nil)
@@ -172,6 +177,21 @@ func displayHandler(w http.ResponseWriter, r *http.Request) {
 		Value: fmt.Sprintf("Photo %s displayed!", photo),
 	})
 	http.Redirect(w, r, "/", 302)
+}
+
+func shutdownHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("Shutting down")
+
+	cmd := exec.Command("halt")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stdout
+
+	if err := cmd.Run(); err != nil {
+		fmt.Fprintf(w, "Error: %s", err)
+		return
+	}
+
+	fmt.Fprintf(w, "Shutting down ...")
 }
 
 func displayPhoto(filename string) error {
