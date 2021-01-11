@@ -12,6 +12,7 @@ import (
 	"runtime"
 	"os"
 	"os/exec"
+	"sort"
 	"time"
 )
 
@@ -77,7 +78,7 @@ func main() {
 }
 
 func displayRandomPhoto() {
-	photos, err := ioutil.ReadDir("./photos")
+	photos, err := photoList()
 	if err != nil {
 		log.Println("Error:", err)
 		return
@@ -105,7 +106,7 @@ func startServer() {
 }
 
 func indexHandler(w http.ResponseWriter, r *http.Request) {
-	files, err := ioutil.ReadDir("./photos")
+	files, err := photoList()
 	if err != nil {
 		fmt.Fprintf(w, "Error: %s", err)
 		return
@@ -321,4 +322,17 @@ func photoRows(photos []os.FileInfo) ([][]os.FileInfo) {
 		}
 	}
 	return rows
+}
+
+func photoList() ([]os.FileInfo, error) {
+	files, err := ioutil.ReadDir("./photos")
+	if err != nil {
+		return nil, err
+	}
+
+	sort.Slice(files, func(i, j int) bool {
+		return files[i].ModTime().Unix() > files[j].ModTime().Unix()
+	})
+
+	return files, nil
 }
