@@ -192,7 +192,11 @@ func shutdownHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Fprintf(w, "Shutting down ...")
+	http.SetCookie(w, &http.Cookie{
+		Name:  "flash",
+		Value: "Shutting down ...",
+	})
+	http.Redirect(w, r, "/", 302)
 }
 
 func displayPhoto(filename string) error {
