@@ -44,7 +44,7 @@ var homepage = `<!DOCTYPE html>
 					{{range .}}
 						<div class="col-md-4 text-center mb-5">
 							<a href="/photos/{{.Name}}">
-								<img src="/thumb?p={{.Name}}" class="img-fluid">
+								<img src="/thumbs/{{.Name}}" class="img-fluid">
 							</a><br>
 							<a href="/display?p={{.Name}}" class="btn btn-primary mt-2">Display</a>
 						</div>
@@ -97,7 +97,6 @@ func startServer() {
 	http.Handle("/thumbs/",
 		http.StripPrefix("/thumbs/", http.FileServer(http.Dir("./thumbs"))))
 
-	http.HandleFunc("/thumb", thumbHandler)
 	http.HandleFunc("/display", displayHandler)
 	http.HandleFunc("/shutdown", shutdownHandler)
 	http.HandleFunc("/", indexHandler)
@@ -135,26 +134,6 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 		Flash:  msg,
 		PhotoRows: photoRows(files),
 	})
-}
-
-func thumbHandler(w http.ResponseWriter, r *http.Request) {
-	photos, ok := r.URL.Query()["p"]
-	if !ok {
-		fmt.Fprintf(w, "Error: required parameter ('p') not supplied")
-		return
-	}
-
-	photo := photos[0]
-	thumbPath := path("thumbs", photo)
-
-	if _, err := os.Stat(thumbPath); err != nil {
-		if err = generateThumbnail(photo); err != nil {
-			fmt.Fprintf(w, "Error: %s", err)
-			return
-		}
-	}
-
-	http.Redirect(w, r, fmt.Sprintf("/%s", thumbPath), 301)
 }
 
 func displayHandler(w http.ResponseWriter, r *http.Request) {
@@ -202,12 +181,6 @@ func shutdownHandler(w http.ResponseWriter, r *http.Request) {
 func displayPhoto(filename string) error {
 	dithered := path("dithered", filename)
 
-	if _, err := os.Stat(dithered); err != nil {
-		if err = generateDitheredImage(filename); err != nil {
-			return err
-		}
-	}
-
 	file, err := os.Open(dithered)
 	if err != nil {
 		return err
@@ -233,80 +206,6 @@ func displayPhoto(filename string) error {
 
 	log.Println("-> Displaying", filename)
 	epd.Display(epd.Convert(img))
-
-	return nil
-}
-
-func generateThumbnail(filename string) error {
-	log.Println("-> Generating thumbnail for", filename)
-
-	err := os.MkdirAll("thumbs", 0755)
-	if err != nil {
-		return err
-	}
-
-	err = convert(
-		path("photos", filename),
-		path("thumbs", filename),
-		"-auto-orient",
-		"-resize",
-		"440x264^",
-		"-gravity",
-		"center",
-		"-extent",
-		"440x264",
-	)
-
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func generateDitheredImage(filename string) error {
-	log.Println("-> Generating dithered image for", filename)
-
-	err := os.MkdirAll("dithered", 0755)
-	if err != nil {
-		return err
-	}
-
-	err = convert(
-		path("photos", filename),
-		path("dithered", filename),
-		"-auto-orient",
-		"-resize",
-		"880x528^",
-		"-gravity",
-		"center",
-		"-extent",
-		"880x528",
-		"-ordered-dither",
-		"o8x8",
-		"-monochrome",
-		"-negate",
-	)
-
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func convert(infile string, outfile string, options ...string) error {
-	var args []string
-	args = append(args, infile)
-	args = append(args, options...)
-	args = append(args, outfile)
-
-	cmd := exec.Command("convert", args...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stdout
-
-	if err := cmd.Run(); err != nil {
-		return err
-	}
 
 	return nil
 }
