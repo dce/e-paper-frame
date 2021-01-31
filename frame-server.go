@@ -198,14 +198,17 @@ func displayPhoto(filename string) error {
 
 	epd, _ := epd7in5.New("P1_22", "P1_24", "P1_11", "P1_18")
 
-	log.Println("-> Initializing the display")
-	epd.Init()
+	log.Println("-> Reset")
+	epd.Reset()
 
-	log.Println("-> Clearing")
-	epd.Clear()
+	log.Println("-> Init")
+	epd.Init()
 
 	log.Println("-> Displaying", filename)
 	epd.Display(epd.Convert(img))
+
+	log.Println("-> Sleep")
+	epd.Sleep()
 
 	return nil
 }
