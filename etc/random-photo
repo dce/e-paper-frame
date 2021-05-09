@@ -1,0 +1,4 @@
+#!/bin/sh
+
+su pi -c "aws s3 sync --delete --exclude=frame-server-arm s3://<BUCKET_NAME> /home/pi/frame" 2>&1 | /usr/bin/logger -t FRAME
+cd /home/pi/frame && ./frame-server-arm random 2>&1 | /usr/bin/logger -t FRAME
